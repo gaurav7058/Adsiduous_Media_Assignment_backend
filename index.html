@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meeting Room Scheduler</title>
+</head>
+<body>
+  <main>
+    <h2>Meeting Room Scheduler and Rate Limit</h2>
+    <button id="add-array">Add Room</button>
+    <div id="input-container"></div>
+    <button id="evaluate">Evaluate</button>
+    <p id="result"></p>
+  </main>
+
+  <script>
+    class RateLimiter {
+      constructor(limit, window) {
+        this.limit = limit;
+        this.window = window;
+        this.userRequests = new Map();
+      }
+
+      allow_request(userId, currentTime) {
+        if (!this.userRequests.has(userId)) {
+          this.userRequests.set(userId, []);
+        }
+
+        const requests = this.userRequests.get(userId);
+
+        while (requests.length > 0 && currentTime - requests[0] >= this.window) {
+          requests.shift();
+        }
+
+        if (requests.length < this.limit) {
+          requests.push(currentTime);
+          return true;
+        } else {
+          return false;
+        }
+      }
+    }
+
+    const rl = new RateLimiter(3, 60); // 3 requests per 60 seconds
+    let count = 0;
+
+    function addRoom() {
+      if (count >= 5) {
+        alert("Maximum you can add is 5 rooms");
+        return;
+      }
+
+      count++;
+
+      const div = document.createElement("div");
+
+      const startInput = document.createElement("input");
+      const endInput = document.createElement("input");
+
+      startInput.placeholder = "Start";
+      endInput.placeholder = "End";
+
+      div.appendChild(startInput);
+      div.appendChild(endInput);
+
+      document.getElementById("input-container").appendChild(div);
+    }
+
+    document.getElementById("add-array").addEventListener("click", addRoom);
+
+    document.getElementById("evaluate").addEventListener("click", () => {
+      const currentTime = Math.floor(Date.now() / 1000);
+      const userId = "user1";
+
+      if (!rl.allow_request(userId, currentTime)) {
+        alert("Too many requests. Please wait before trying again.");
+        return;
+      }
+
+      const inputs = document.querySelectorAll("#input-container div");
+      const meetings = [];
+
+      for (let div of inputs) {
+        const [startInput, endInput] = div.querySelectorAll("input");
+        const start = Number(startInput.value);
+        const end = Number(endInput.value);
+
+        if (isNaN(start) || isNaN(end) || start >= end) {
+          alert("Please enter valid Start and End values (start < end)");
+          return;
+        }
+
+        meetings.push([start, end]);
+      }
+
+      const [isOneRoomEnough, minRoomsNeeded] = meetingRoomScheduler(meetings);
+
+      document.getElementById("result").innerText =
+        `Is one room enough? ${isOneRoomEnough ? "Yes" : "No"}\n` +
+        `Minimum rooms needed: ${minRoomsNeeded}`;
+    });
+
+    function meetingRoomScheduler(meetings) {
+      if (meetings.length === 0) return [true, 0];
+
+      const startTimes = meetings.map(m => m[0]).sort((a, b) => a - b);
+      const endTimes = meetings.map(m => m[1]).sort((a, b) => a - b);
+
+      let usedRooms = 0;
+      let maxRooms = 0;
+      let startPtr = 0, endPtr = 0;
+
+      while (startPtr < meetings.length) {
+        if (startTimes[startPtr] < endTimes[endPtr]) {
+          usedRooms++;
+          startPtr++;
+          maxRooms = Math.max(maxRooms, usedRooms);
+        } else {
+          usedRooms--;
+          endPtr++;
+        }
+      }
+
+      return [maxRooms === 1, maxRooms];
+    }
+
+    // ✅ Add one room by default when page loads
+    window.onload = () => {
+      addRoom();
+    };
+  </script>
+</body>
+</html>
