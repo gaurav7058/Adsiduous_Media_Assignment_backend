@@ -2,9 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Meeting Room Scheduler</title>
   <link rel="stylesheet" href="style.css">
+  </style>
 </head>
 <body>
   <main>
@@ -14,48 +15,38 @@
     <button id="evaluate">Evaluate</button>
     <p id="result"></p>
 
-    <div class="RateLimitExample">
-      <h2>Rate Limit Example</h2>
-      <p>You can take 3 requests in 60 sec</p>
+    <!-- Removed fixed RateLimitExample block -->
 
-      <input type="text"><br>
-      <button>Submit</button>
-    </div>
+    <!-- New RateLimiter Demo Form -->
+    <section id="rateLimiterDemo">
+      <h2>Rate Limiter Demo with Custom N and T</h2>
+      <form id="rateLimiterForm">
+        <label>
+          User ID:<br />
+          <input type="text" id="userId" required />
+        </label><br />
+        <label>
+          Current Time (seconds):<br />
+          <input type="number" id="currentTime" required min="0" />
+        </label><br />
+        <label>
+          Limit (N requests):<br />
+          <input type="number" id="limit" value="3" required min="1" />
+        </label><br />
+        <label>
+          Window (T seconds):<br />
+          <input type="number" id="window" value="60" required min="1" />
+        </label><br />
+        <button type="submit">Check Request</button>
+      </form>
+      <div class="output" id="demoResult"></div>
+    </section>
   </main>
 
   <script>
-    // Rate Limiter class
-    class RateLimiter {
-      constructor(limit, window) {
-        this.limit = limit;
-        this.window = window; // in seconds
-        this.userRequests = new Map();
-      }
-
-      allow_request(userId, currentTime) {
-        if (!this.userRequests.has(userId)) {
-          this.userRequests.set(userId, []);
-        }
-
-        const requests = this.userRequests.get(userId);
-
-        // Remove outdated requests
-        while (requests.length > 0 && currentTime - requests[0] >= this.window) {
-          requests.shift();
-        }
-
-        if (requests.length < this.limit) {
-          requests.push(currentTime);
-          return true;
-        } else {
-          return false;
-        }
-      }
-    }
-
-    const rl = new RateLimiter(3, 60); // Allow 3 requests every 60 seconds
     let count = 0;
 
+    // Add meeting room input fields
     function addRoom() {
       if (count >= 5) {
         alert("Maximum you can add is 5 rooms");
@@ -80,15 +71,8 @@
 
     document.getElementById("add-array").addEventListener("click", addRoom);
 
+    // Meeting room scheduling evaluation
     document.getElementById("evaluate").addEventListener("click", () => {
-      const currentTime = Math.floor(Date.now() / 1000);
-      const userId = "user1";
-
-      if (!rl.allow_request(userId, currentTime)) {
-        alert("Too many requests. Please wait before trying again.");
-        return;
-      }
-
       const inputs = document.querySelectorAll("#input-container div");
       const meetings = [];
 
@@ -112,6 +96,7 @@
         `Minimum rooms needed: ${minRoomsNeeded}`;
     });
 
+    // Meeting room scheduling logic
     function meetingRoomScheduler(meetings) {
       if (meetings.length === 0) return [true, 0];
 
@@ -136,37 +121,61 @@
       return [maxRooms === 1, maxRooms];
     }
 
-    // Add one room by default when page loads
+    // Add one meeting input on load
     window.onload = () => {
       addRoom();
     };
 
-    // Rate limit for Submit button
-    const submitButton = document.querySelector(".RateLimitExample button");
-    const submitInput = document.querySelector(".RateLimitExample input");
-    const submitResult = document.createElement("p");
-    submitButton.parentElement.appendChild(submitResult);
-
-    submitButton.addEventListener("click", () => {
-      const userId = "submitUser";
-      const currentTime = Math.floor(Date.now() / 1000);
-
-      if (!rl.allow_request(userId, currentTime)) {
-        submitResult.innerText = "Rate limit exceeded. Try again later.";
-        submitResult.style.color = "red";
-        return;
+    // -------------------
+    // New RateLimiter class for demo form with custom N and T
+    class RateLimiter {
+      constructor(limit, window) {
+        this.limit = limit; // max requests
+        this.window = window; // time window in seconds
+        this.userRequests = new Map();
       }
 
-      const inputValue = submitInput.value.trim();
-      if (!inputValue) {
-        submitResult.innerText = "Please enter something.";
-        submitResult.style.color = "orange";
-        return;
+      allow_request(user_id, current_time) {
+        if (!this.userRequests.has(user_id)) {
+          this.userRequests.set(user_id, []);
+        }
+        const requests = this.userRequests.get(user_id);
+
+        // Remove requests outside the sliding window
+        while (requests.length && requests[0] <= current_time - this.window) {
+          requests.shift();
+        }
+
+        if (requests.length < this.limit) {
+          requests.push(current_time);
+          return true;
+        }
+        return false;
+      }
+    }
+
+    const form = document.getElementById('rateLimiterForm');
+    const demoResultDiv = document.getElementById('demoResult');
+
+    let rlDemo = null;
+
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+
+      const userId = document.getElementById('userId').value.trim();
+      const currentTime = Number(document.getElementById('currentTime').value);
+      const limit = Number(document.getElementById('limit').value);
+      const window = Number(document.getElementById('window').value);
+
+      // Reinitialize RateLimiter if parameters changed or not yet initialized
+      if (!rlDemo || rlDemo.limit !== limit || rlDemo.window !== window) {
+        rlDemo = new RateLimiter(limit, window);
+        // Clear output on new RateLimiter creation
+        demoResultDiv.textContent = `RateLimiter created with limit=${limit}, window=${window} seconds.\n`;
       }
 
-      submitResult.innerText = `Submitted: ${inputValue}`;
-      submitResult.style.color = "green";
-      submitInput.value = "";
+      const allowed = rlDemo.allow_request(userId, currentTime);
+      demoResultDiv.textContent += `User "${userId}" at time ${currentTime}: Request allowed? ${allowed}\n`;
     });
   </script>
 </body>
