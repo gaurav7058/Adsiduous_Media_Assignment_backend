@@ -13,13 +13,22 @@
     <div id="input-container"></div>
     <button id="evaluate">Evaluate</button>
     <p id="result"></p>
+
+    <div class="RateLimitExample">
+      <h2>Rate Limit Example</h2>
+      <p>You can take 3 requests in 60 sec</p>
+
+      <input type="text"><br>
+      <button>Submit</button>
+    </div>
   </main>
 
   <script>
+    // Rate Limiter class
     class RateLimiter {
       constructor(limit, window) {
         this.limit = limit;
-        this.window = window;
+        this.window = window; // in seconds
         this.userRequests = new Map();
       }
 
@@ -30,6 +39,7 @@
 
         const requests = this.userRequests.get(userId);
 
+        // Remove outdated requests
         while (requests.length > 0 && currentTime - requests[0] >= this.window) {
           requests.shift();
         }
@@ -43,7 +53,7 @@
       }
     }
 
-    const rl = new RateLimiter(3, 60); // 3 requests per 60 seconds
+    const rl = new RateLimiter(3, 60); // Allow 3 requests every 60 seconds
     let count = 0;
 
     function addRoom() {
@@ -126,10 +136,38 @@
       return [maxRooms === 1, maxRooms];
     }
 
-    // ✅ Add one room by default when page loads
+    // Add one room by default when page loads
     window.onload = () => {
       addRoom();
     };
+
+    // Rate limit for Submit button
+    const submitButton = document.querySelector(".RateLimitExample button");
+    const submitInput = document.querySelector(".RateLimitExample input");
+    const submitResult = document.createElement("p");
+    submitButton.parentElement.appendChild(submitResult);
+
+    submitButton.addEventListener("click", () => {
+      const userId = "submitUser";
+      const currentTime = Math.floor(Date.now() / 1000);
+
+      if (!rl.allow_request(userId, currentTime)) {
+        submitResult.innerText = "Rate limit exceeded. Try again later.";
+        submitResult.style.color = "red";
+        return;
+      }
+
+      const inputValue = submitInput.value.trim();
+      if (!inputValue) {
+        submitResult.innerText = "Please enter something.";
+        submitResult.style.color = "orange";
+        return;
+      }
+
+      submitResult.innerText = `Submitted: ${inputValue}`;
+      submitResult.style.color = "green";
+      submitInput.value = "";
+    });
   </script>
 </body>
 </html>
